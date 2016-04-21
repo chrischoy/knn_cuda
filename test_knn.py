@@ -4,9 +4,9 @@ import cv2
 
 bf = cv2.BFMatcher()
 
-n = 4
-m = 8
-dim = 2
+n = 48
+m = 8192
+dim = 128
 k = 2
 
 query = np.random.rand(dim, n)
@@ -21,12 +21,13 @@ ref = ref.astype(np.float32)
 
 dist, ind = knn.knn(query, ref, k)
 
-print query.T
-print ref.T
+# print query.T
+# print ref.T
 print dist.T
 print ind.T - 1
 
 matches = bf.knnMatch(query.T, ref.T, k)
-for m, n in matches:
-    print m.distance, n.distance
-    print m.trainIdx, n.trainIdx
+for ms, ds, inds in zip(matches, dist.T, ind.T):
+    m, n = ms
+    print m.distance, n.distance, ds
+    print m.trainIdx, n.trainIdx, inds - 1
