@@ -305,7 +305,7 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host, int query_width
   dim3 g_256x1(query_width/256, 1, 1);
   dim3 t_256x1(256, 1, 1);
   if (query_width%256 != 0) g_256x1.x += 1;
-  
+
   dim3 g_k_16x16(query_width/16, k/16, 1);
   dim3 t_k_16x16(16, 16, 1);
   if (query_width%16 != 0) g_k_16x16.x += 1;
