@@ -37,7 +37,64 @@
 //-----------------------------------------------------------------------------------------------//
 //                                            KERNELS                                            //
 //-----------------------------------------------------------------------------------------------//
+template<typename T>
+__global__ void cudaMemsetWord(T * x, T value, size_t count )
+{
+    size_t tid = threadIdx.x + blockIdx.x * blockDim.x;
+    size_t stride = blockDim.x * gridDim.x;
 
+    for(int i=tid; i<count; i+=stride) {
+        x[i] = value;
+    }
+}
+
+__global__ void extract_with_interpolation(
+    int nthreads,
+    float *data, float *n_xy_coords, float *extracted_data,
+    int n_max_coord, int channels, int height, int width) {
+
+  int x0, x1, y0, y1, nc;
+  float wx0, wx1, wy0, wy1;
+  int n;
+  float x, y;
+
+  for (int index = blockIdx.x * blockDim.x + threadIdx.x;
+       index < (nthreads);
+       index += blockDim.x * gridDim.x) {
+    /*
+    n = n_xy_coords[index * 3];  // batch index
+    x = n_xy_coords[index * 3 + 1];
+    y = n_xy_coords[index * 3 + 2];
+
+    x0 = static_cast<int>(floor(x));
+    x1 = x0 + 1;
+    y0 = static_cast<int>(floor(y));
+    y1 = y0 + 1;
+
+    x0 = x0 <= 0 ? 0 : (x0 >= (width - 1)  ? (width - 1) : x0);
+    y0 = y0 <= 0 ? 0 : (y0 >= (height - 1) ? (height - 1) : y0);
+    x1 = x1 <= 0 ? 0 : (x1 >= (width - 1)  ? (width - 1) : x1);
+    y1 = y1 <= 0 ? 0 : (y1 >= (height - 1) ? (height - 1) : y1);
+
+    wx0 = static_cast<float>(x1) - x;
+    wx1 = x - x0;
+    wy0 = static_cast<float>(y1) - y;
+    wy1 = y - y0;
+
+    if(x0 == x1){ wx0 = 1; wx1 = 0; }
+    if(y0 == y1){ wy0 = 1; wy1 = 0; }
+    */
+    for(int c=0; c < channels; c++) {
+      nc = (n * channels + c) * height;
+      // extracted_data[index * channels + c] = wy0 * wx0 * data[(nc + y0) * width + x0]
+      // extracted_data[index * channels] = 0;
+      extracted_data[(n * channels + c) * n_max_coord + index] = wy0 * wx0 * data[(nc + y0) * width + x0]
+        + wy1 * wx0 * data[(nc + y1) * width + x0]
+        + wy0 * wx1 * data[(nc + y0) * width + x1]
+        + wy1 * wx1 * data[(nc + y1) * width + x1];
+    }
+  }
+}
 
 /**
   * Computes the distance between two matrix A (reference points) and
@@ -229,6 +286,86 @@ void printErrorMessage(cudaError_t error, int memorySize){
   printf("MEMORY ALLOCATION ERROR  : %s\n", cudaGetErrorString(error));
   printf("Whished allocated memory : %d\n", memorySize);
   printf("==================================================\n");
+}
+
+
+/**
+  * Feature extraction algorithm
+  * - Initialize CUDA
+  * - Allocate device memory
+  * - Copy point sets (reference and query points) from host to device memory
+  * - Compute the distances + indexes to the k nearest neighbors for each query point
+  * - Copy distances from device to host memory
+  *
+  * @param ref_host      reference points ; pointer to linear matrix
+  * @param ref_width     number of reference points ; width of the matrix
+  * @param query_host    query points ; pointer to linear matrix
+  * @param query_width   number of query points ; width of the matrix
+  * @param height        dimension of points ; height of the matrices
+  * @param k             number of neighbor to consider
+  * @param dist_host     distances to k nearest neighbors ; pointer to linear matrix
+  * @param dist_host     indexes of the k nearest neighbors ; pointer to linear matrix
+  *
+  */
+void extract_cuda(float* activation, int n_batch, int n_channel, int height,
+    int width, float* coords, int n_max_coord, int dim_coord,
+    float *extracted_activation){
+  // activation n_batch x n_channel x height x width
+  // coords n_batch x n_max_coord x dim_coord
+  // uninitialized empty pointer which will be filled with extracted_activation
+  // n_batch x n_channel x n_max_coord. KNN requires dim x n_feature format
+  unsigned int size_of_float = sizeof(float);
+
+  // Variables
+  float *activation_device;
+  float *coord_device;
+  float *extracted_activation_device;
+
+  // CUDA Initialisation
+  cuInit(0);
+
+  // Allocation of global memory for query points and for distances, CUDA_CHECK
+  cudaMalloc((void **) &activation_device,           n_batch * n_channel * height * width * size_of_float);
+  cudaMalloc((void **) &extracted_activation_device, n_batch * n_channel * n_max_coord * size_of_float);
+  cudaMalloc((void **) &coord_device,                n_batch * n_max_coord * dim_coord * size_of_float);
+
+  // Grids ans threads
+  dim3 g_size_r((n_batch * n_max_coord * dim_coord) / 256, 1, 1);
+  dim3 t_size_r(256, 1, 1);
+  if ((n_batch * n_max_coord * dim_coord) % 256 != 0) g_size_r.x += 1;
+
+  // cudaMemsetWord<<<g_size_r, t_size_r>>>(extracted_activation_device, (float)0, (n_batch * n_max_coord * dim_coord));
+  cudaMemset(extracted_activation_device, 0, n_batch * n_channel * n_max_coord * size_of_float);
+
+  // Copy coordinates to the device
+  cudaMemcpy(coord_device, &coords[0],
+     n_batch * n_max_coord * dim_coord * size_of_float,
+     cudaMemcpyHostToDevice);
+
+  // Copy of part of query actually being treated
+  cudaMemcpy(activation_device, &activation[0],
+      n_batch * n_channel * height * width * size_of_float,
+      cudaMemcpyHostToDevice);
+
+  // Grids ans threads
+  dim3 g_size((n_batch * n_max_coord) / 256, 1, 1);
+  dim3 t_size(256, 1, 1);
+  if ((n_batch * n_max_coord) % 256 != 0) g_size.x += 1;
+
+  // extract_with_interpolation<<<g_size, t_size>>>(n_batch * n_max_coord,
+  //   activation_device, coord_device, extracted_activation_device,
+  //   n_max_coord, n_channel, height, width);
+
+  // Memory copy of output from device to host
+  cudaMemcpy(extracted_activation, &extracted_activation_device[0],
+      n_batch * n_channel * n_max_coord,
+      cudaMemcpyDeviceToHost);
+
+  // Free memory
+  cudaFree(coord_device);
+  cudaFree(activation_device);
+  cudaFree(extracted_activation_device);
+  cudaDeviceReset();
 }
 
 
