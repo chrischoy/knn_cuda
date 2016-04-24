@@ -37,17 +37,6 @@
 //-----------------------------------------------------------------------------------------------//
 //                                            KERNELS                                            //
 //-----------------------------------------------------------------------------------------------//
-template<typename T>
-__global__ void cudaMemsetWord(T * x, T value, size_t count )
-{
-    size_t tid = threadIdx.x + blockIdx.x * blockDim.x;
-    size_t stride = blockDim.x * gridDim.x;
-
-    for(int i=tid; i<count; i+=stride) {
-        x[i] = value;
-    }
-}
-
 __global__ void extract_with_interpolation(
     int nthreads,
     float *data, float *n_xy_coords, float *extracted_data,
@@ -55,16 +44,16 @@ __global__ void extract_with_interpolation(
 
   int x0, x1, y0, y1, nc;
   float wx0, wx1, wy0, wy1;
-  int n;
+  int n, nd;
   float x, y;
 
   for (int index = blockIdx.x * blockDim.x + threadIdx.x;
        index < (nthreads);
        index += blockDim.x * gridDim.x) {
-    /*
-    n = n_xy_coords[index * 3];  // batch index
-    x = n_xy_coords[index * 3 + 1];
-    y = n_xy_coords[index * 3 + 2];
+    n = (index / n_max_coord);
+    nd = n * n_max_coord * channels;
+    x = n_xy_coords[index * 2];
+    y = n_xy_coords[index * 2 + 1];
 
     x0 = static_cast<int>(floor(x));
     x1 = x0 + 1;
@@ -83,15 +72,14 @@ __global__ void extract_with_interpolation(
 
     if(x0 == x1){ wx0 = 1; wx1 = 0; }
     if(y0 == y1){ wy0 = 1; wy1 = 0; }
-    */
     for(int c=0; c < channels; c++) {
       nc = (n * channels + c) * height;
       // extracted_data[index * channels + c] = wy0 * wx0 * data[(nc + y0) * width + x0]
-      // extracted_data[index * channels] = 0;
-      extracted_data[(n * channels + c) * n_max_coord + index] = wy0 * wx0 * data[(nc + y0) * width + x0]
-        + wy1 * wx0 * data[(nc + y1) * width + x0]
-        + wy0 * wx1 * data[(nc + y0) * width + x1]
-        + wy1 * wx1 * data[(nc + y1) * width + x1];
+      // extracted_data[nd + index % n_max_coord + n_max_coord * c] = index;
+      extracted_data[nd + index % n_max_coord + n_max_coord * c] = wy0 * wx0 * data[(nc + y0) * width + x0]
+       + wy1 * wx0 * data[(nc + y1) * width + x0]
+       + wy0 * wx1 * data[(nc + y0) * width + x1]
+       + wy1 * wx1 * data[(nc + y1) * width + x1];
     }
   }
 }
@@ -334,7 +322,6 @@ void extract_cuda(float* activation, int n_batch, int n_channel, int height,
   dim3 t_size_r(256, 1, 1);
   if ((n_batch * n_max_coord * dim_coord) % 256 != 0) g_size_r.x += 1;
 
-  // cudaMemsetWord<<<g_size_r, t_size_r>>>(extracted_activation_device, (float)0, (n_batch * n_max_coord * dim_coord));
   cudaMemset(extracted_activation_device, 0, n_batch * n_channel * n_max_coord * size_of_float);
 
   // Copy coordinates to the device
@@ -352,13 +339,13 @@ void extract_cuda(float* activation, int n_batch, int n_channel, int height,
   dim3 t_size(256, 1, 1);
   if ((n_batch * n_max_coord) % 256 != 0) g_size.x += 1;
 
-  // extract_with_interpolation<<<g_size, t_size>>>(n_batch * n_max_coord,
-  //   activation_device, coord_device, extracted_activation_device,
-  //   n_max_coord, n_channel, height, width);
+  extract_with_interpolation<<<g_size, t_size>>>(n_batch * n_max_coord,
+    activation_device, coord_device, extracted_activation_device,
+    n_max_coord, n_channel, height, width);
 
   // Memory copy of output from device to host
   cudaMemcpy(extracted_activation, &extracted_activation_device[0],
-      n_batch * n_channel * n_max_coord,
+      n_batch * n_channel * n_max_coord * size_of_float,
       cudaMemcpyDeviceToHost);
 
   // Free memory
