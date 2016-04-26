@@ -313,9 +313,12 @@ void extract_cuda(float* activation, int n_batch, int n_channel, int height,
   cuInit(0);
 
   // Allocation of global memory for query points and for distances, CUDA_CHECK
-  cudaMalloc((void **) &activation_device,           n_batch * n_channel * height * width * size_of_float);
-  cudaMalloc((void **) &extracted_activation_device, n_batch * n_channel * n_max_coord * size_of_float);
-  cudaMalloc((void **) &coord_device,                n_batch * n_max_coord * dim_coord * size_of_float);
+  cudaMalloc((void **) &activation_device,
+      n_batch * n_channel * height * width * size_of_float);
+  cudaMalloc((void **) &extracted_activation_device,
+      n_batch * n_channel * n_max_coord * size_of_float);
+  cudaMalloc((void **) &coord_device,
+      n_batch * n_max_coord * dim_coord * size_of_float);
 
   // Grids ans threads
   dim3 g_size_r((n_batch * n_max_coord * dim_coord) / 256, 1, 1);
@@ -352,9 +355,7 @@ void extract_cuda(float* activation, int n_batch, int n_channel, int height,
   cudaFree(coord_device);
   cudaFree(activation_device);
   cudaFree(extracted_activation_device);
-  cudaDeviceReset();
 }
-
 
 /**
   * K nearest neighbor algorithm
@@ -374,7 +375,8 @@ void extract_cuda(float* activation, int n_batch, int n_channel, int height,
   * @param dist_host     indexes of the k nearest neighbors ; pointer to linear matrix
   *
   */
-void knn_cuda(float* ref_host, int ref_width, float* query_host, int query_width, int height, int k, float* dist_host, int* ind_host){
+void knn_cuda(float* ref_host, int ref_width, float* query_host,
+    int query_width, int height, int k, float* dist_host, int* ind_host){
 
   unsigned int size_of_float = sizeof(float);
   unsigned int size_of_int   = sizeof(int);
@@ -408,7 +410,8 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host, int query_width
   ind_pitch = ind_pitch_in_bytes / size_of_int;
 
   // Allocation of global memory CUDA_CHECK
-  cudaMallocPitch( (void **) &ref_dev, &ref_pitch_in_bytes, ref_width * size_of_float, height);
+  cudaMallocPitch( (void **) &ref_dev, &ref_pitch_in_bytes,
+      ref_width * size_of_float, height);
 
   ref_pitch = ref_pitch_in_bytes/size_of_float;
   cudaMemcpy2D(ref_dev, ref_pitch_in_bytes, ref_host,
