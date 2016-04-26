@@ -90,15 +90,13 @@ __global__ void extract_with_interpolation(
   *
   * @param A     pointer on the matrix A
   * @param wA    width of the matrix A = number of points in A
-  * @param pA    pitch of matrix A given in number of columns
   * @param B     pointer on the matrix B
   * @param wB    width of the matrix B = number of points in B
-  * @param pB    pitch of matrix B given in number of columns
   * @param dim   dimension of points = height of matrices A and B
   * @param AB    pointer on the matrix containing the wA*wB distances computed
   */
-__global__ void cuComputeDistanceGlobal( float* A, int wA, int pA,
-    float* B, int wB, int pB, int dim,  float* AB){
+__global__ void cuComputeDistanceGlobal( float* A, int wA,
+    float* B, int wB, int dim,  float* AB){
 
   // Declaration of the shared memory arrays As and Bs used to store the sub-matrix of A and B
   __shared__ float shared_A[BLOCK_DIM][BLOCK_DIM];
@@ -122,9 +120,9 @@ __global__ void cuComputeDistanceGlobal( float* A, int wA, int pA,
   // Loop parameters
   begin_A = BLOCK_DIM * blockIdx.y;
   begin_B = BLOCK_DIM * blockIdx.x;
-  step_A  = BLOCK_DIM * pA;
-  step_B  = BLOCK_DIM * pB;
-  end_A   = begin_A + (dim-1) * pA;
+  step_A  = BLOCK_DIM * wA;
+  step_B  = BLOCK_DIM * wB;
+  end_A   = begin_A + (dim-1) * wA;
 
     // Conditions
   int cond0 = (begin_A + tx < wA); // used to write in shared memory
@@ -134,9 +132,9 @@ __global__ void cuComputeDistanceGlobal( float* A, int wA, int pA,
   // Loop over all the sub-matrices of A and B required to compute the block sub-matrix
   for (int a = begin_A, b = begin_B; a <= end_A; a += step_A, b += step_B) {
     // Load the matrices from device memory to shared memory; each thread loads one element of each matrix
-    if (a/pA + ty < dim){
-      shared_A[ty][tx] = (cond0)? A[a + pA * ty + tx] : 0;
-      shared_B[ty][tx] = (cond1)? B[b + pB * ty + tx] : 0;
+    if (a/wA + ty < dim){
+      shared_A[ty][tx] = (cond0)? A[a + wA * ty + tx] : 0;
+      shared_B[ty][tx] = (cond1)? B[b + wB * ty + tx] : 0;
     }
     else{
       shared_A[ty][tx] = 0;
@@ -160,7 +158,7 @@ __global__ void cuComputeDistanceGlobal( float* A, int wA, int pA,
 
   // Write the block sub-matrix to device memory; each thread writes one element
   if (cond2 && cond1)
-    AB[(begin_A + ty) * pB + begin_B + tx] = ssd;
+    AB[(begin_A + ty) * wB + begin_B + tx] = ssd;
 }
 
 
@@ -168,14 +166,12 @@ __global__ void cuComputeDistanceGlobal( float* A, int wA, int pA,
   * Gathers k-th smallest distances for each column of the distance matrix in the top.
   *
   * @param dist        distance matrix
-  * @param dist_pitch  pitch of the distance matrix given in number of columns
   * @param ind         index matrix
-  * @param ind_pitch   pitch of the index matrix given in number of columns
   * @param width       width of the distance matrix and of the index matrix
   * @param height      height of the distance matrix and of the index matrix
   * @param k           number of neighbors to consider
   */
-__global__ void cuInsertionSort(float *dist, int dist_pitch, int *ind, int ind_pitch, int width, int height, int k){
+__global__ void cuInsertionSort(float *dist, int *ind, int width, int height, int k){
 
   // Variables
   int l, i, j;
@@ -194,46 +190,46 @@ __global__ void cuInsertionSort(float *dist, int dist_pitch, int *ind, int ind_p
 
     // Part 1 : sort kth firt elementZ
     for (l=1; l<k; l++){
-      curr_row  = l * dist_pitch;
+      curr_row  = l * width;
       curr_dist = p_dist[curr_row];
       if (curr_dist<max_dist){
         i=l-1;
         for (int a=0; a<l-1; a++){
-          if (p_dist[a*dist_pitch]>curr_dist){
+          if (p_dist[a*width]>curr_dist){
             i=a;
             break;
           }
         }
         for (j=l; j>i; j--){
-          p_dist[j*dist_pitch] = p_dist[(j-1)*dist_pitch];
-          p_ind[j*ind_pitch]   = p_ind[(j-1)*ind_pitch];
+          p_dist[j*width] = p_dist[(j-1)*width];
+          p_ind[j*width]   = p_ind[(j-1)*width];
         }
-        p_dist[i*dist_pitch] = curr_dist;
-        p_ind[i*ind_pitch]   = l+1;
+        p_dist[i*width] = curr_dist;
+        p_ind[i*width]   = l+1;
       } else {
-        p_ind[l*ind_pitch] = l+1;
+        p_ind[l*width] = l+1;
       }
       max_dist = p_dist[curr_row];
     }
 
     // Part 2 : insert element in the k-th first lines
-    max_row = (k-1)*dist_pitch;
+    max_row = (k-1)*width;
     for (l=k; l<height; l++){
-      curr_dist = p_dist[l*dist_pitch];
+      curr_dist = p_dist[l*width];
       if (curr_dist<max_dist){
         i=k-1;
         for (int a=0; a<k-1; a++){
-          if (p_dist[a*dist_pitch]>curr_dist){
+          if (p_dist[a*width]>curr_dist){
             i=a;
             break;
           }
         }
         for (j=k-1; j>i; j--){
-          p_dist[j*dist_pitch] = p_dist[(j-1)*dist_pitch];
-          p_ind[j*ind_pitch]   = p_ind[(j-1)*ind_pitch];
+          p_dist[j*width] = p_dist[(j-1)*width];
+          p_ind[j*width]   = p_ind[(j-1)*width];
         }
-        p_dist[i*dist_pitch] = curr_dist;
-        p_ind[i*ind_pitch]   = l+1;
+        p_dist[i*width] = curr_dist;
+        p_ind[i*width]   = l+1;
         max_dist             = p_dist[max_row];
       }
     }
@@ -247,14 +243,13 @@ __global__ void cuInsertionSort(float *dist, int dist_pitch, int *ind, int ind_p
   *
   * @param dist    distance matrix
   * @param width   width of the distance matrix
-  * @param pitch   pitch of the distance matrix given in number of columns
   * @param k       number of neighbors to consider
   */
-__global__ void cuParallelSqrt(float *dist, int width, int pitch, int k){
+__global__ void cuParallelSqrt(float *dist, int width, int k){
     unsigned int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
   if (xIndex<width && yIndex<k)
-    dist[yIndex*pitch + xIndex] = sqrt(dist[yIndex*pitch + xIndex]);
+    dist[yIndex*width + xIndex] = sqrt(dist[yIndex*width + xIndex]);
 }
 
 
@@ -386,42 +381,27 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host,
   float  *ref_dev;
   float  *dist_dev;
   int    *ind_dev;
-  size_t query_pitch;
-  size_t query_pitch_in_bytes;
-  size_t ref_pitch;
-  size_t ref_pitch_in_bytes;
-  size_t ind_pitch;
-  size_t ind_pitch_in_bytes;
 
   // CUDA Initialisation
   cuInit(0);
 
   // Allocation of global memory for query points and for distances, CUDA_CHECK
-  cudaMallocPitch( (void **) &query_dev, &query_pitch_in_bytes,
-      query_width * size_of_float, height + ref_width);
+  cudaMalloc((void **) &query_dev, query_width * (height + ref_width) * size_of_float);
 
-  query_pitch = query_pitch_in_bytes/size_of_float;
-  dist_dev    = query_dev + height * query_pitch;
+  dist_dev    = query_dev + height * query_width;
 
   // Allocation of global memory for indexes CUDA_CHECK
-  cudaMallocPitch((void **) &ind_dev, &ind_pitch_in_bytes,
-      query_width * size_of_int, k);
-
-  ind_pitch = ind_pitch_in_bytes / size_of_int;
+  cudaMalloc((void **) &ind_dev, query_width * k * size_of_int);
 
   // Allocation of global memory CUDA_CHECK
-  cudaMallocPitch( (void **) &ref_dev, &ref_pitch_in_bytes,
-      ref_width * size_of_float, height);
+  cudaMalloc( (void **) &ref_dev, ref_width * height * size_of_float);
 
-  ref_pitch = ref_pitch_in_bytes/size_of_float;
-  cudaMemcpy2D(ref_dev, ref_pitch_in_bytes, ref_host,
-      ref_width*size_of_float, ref_width*size_of_float, height,
+  cudaMemcpy(ref_dev, &ref_host[0], ref_width * height * size_of_float,
       cudaMemcpyHostToDevice);
 
   // Copy of part of query actually being treated
-  cudaMemcpy2D(query_dev, query_pitch_in_bytes, &query_host[0],
-      query_width*size_of_float, query_width*size_of_float, height,
-      cudaMemcpyHostToDevice);
+  cudaMemcpy(query_dev, &query_host[0],
+      query_width * height * size_of_float, cudaMemcpyHostToDevice);
 
   // Grids ans threads
   dim3 g_16x16(query_width/16, ref_width/16, 1);
@@ -440,24 +420,21 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host,
 
   // Kernel 1: Compute all the distances
   cuComputeDistanceGlobal<<<g_16x16,t_16x16>>>(ref_dev, ref_width,
-      ref_pitch, query_dev, query_width, query_pitch, height,
-      dist_dev);
+      query_dev, query_width, height, dist_dev);
 
   // Kernel 2: Sort each column
-  cuInsertionSort<<<g_256x1,t_256x1>>>(dist_dev, query_pitch, ind_dev,
-      ind_pitch, query_width, ref_width, k);
+  cuInsertionSort<<<g_256x1,t_256x1>>>(dist_dev, ind_dev,
+      query_width, ref_width, k);
 
   // Kernel 3: Compute square root of k first elements
-  cuParallelSqrt<<<g_k_16x16,t_k_16x16>>>(dist_dev, query_width, query_pitch, k);
+  cuParallelSqrt<<<g_k_16x16,t_k_16x16>>>(dist_dev, query_width, k);
 
   // Memory copy of output from device to host
-  cudaMemcpy2D(&dist_host[0], query_width*size_of_float, dist_dev,
-      query_pitch_in_bytes, query_width*size_of_float, k,
-      cudaMemcpyDeviceToHost);
+  cudaMemcpy(&dist_host[0], dist_dev,
+      query_width * k *size_of_float, cudaMemcpyDeviceToHost);
 
-  cudaMemcpy2D(&ind_host[0],  query_width*size_of_int,   ind_dev,
-      ind_pitch_in_bytes,   query_width*size_of_int,   k,
-      cudaMemcpyDeviceToHost);
+  cudaMemcpy(&ind_host[0], ind_dev,
+      query_width * k * size_of_int, cudaMemcpyDeviceToHost);
 
   // Free memory
   cudaFree(ref_dev);
