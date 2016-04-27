@@ -386,9 +386,8 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host,
   cuInit(0);
 
   // Allocation of global memory for query points and for distances, CUDA_CHECK
-  cudaMalloc((void **) &query_dev, query_width * (height + ref_width) * size_of_float);
-
-  dist_dev    = query_dev + height * query_width;
+  cudaMalloc((void **) &query_dev, query_width * height * size_of_float);
+  cudaMalloc((void **) &dist_dev, query_width * ref_width * size_of_float);
 
   // Allocation of global memory for indexes CUDA_CHECK
   cudaMalloc((void **) &ind_dev, query_width * k * size_of_int);
