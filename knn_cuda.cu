@@ -439,6 +439,7 @@ void knn_cuda(float* ref_host, int ref_width, float* query_host,
   cudaFree(ref_dev);
   cudaFree(ind_dev);
   cudaFree(query_dev);
+  cudaFree(dist_dev);
 }
 
 
