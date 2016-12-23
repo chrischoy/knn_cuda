@@ -1,30 +1,10 @@
-/**
-  *
-  * Date         03/07/2009
-  * ====
-  *
-  * Authors      Vincent Garcia
-  * =======      Eric    Debreuve
-  *              Michel  Barlaud
-  *
-  * Description  Given a reference point set and a query point set, the program returns
-  * ===========  firts the distance between each query point and its k nearest neighbors in
-  *              the reference point set, and second the indexes of these k nearest neighbors.
-  *              The computation is performed using the API NVIDIA CUDA.
-  *
-  * Paper        Fast k nearest neighbor search using GPU
-  * =====
-  *
-  * BibTeX       @INPROCEEDINGS{2008_garcia_cvgpu,
-  * ======         author = {V. Garcia and E. Debreuve and M. Barlaud},
-  *                title = {Fast k nearest neighbor search using GPU},
-  *                booktitle = {CVPR Workshop on Computer Vision on GPU},
-  *                year = {2008},
-  *                address = {Anchorage, Alaska, USA},
-  *                month = {June}
-  *              }
-  *
-  */
+/** Modifed version of knn-CUDA from https://github.com/vincentfpgarcia/kNN-CUDA
+ * The modifications are
+ *      removed texture memory usage
+ *      removed split query KNN computation
+ *
+ * Last modified by Christopher B. Choy <chrischoy@ai.stanford.edu> 12/23/2016
+ */
 
 // Includes
 #include <cstdio>
