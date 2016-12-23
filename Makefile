@@ -6,14 +6,6 @@ $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example.)
 endif
 include $(CONFIG_FILE)
 
-BUILD_DIR_LINK := $(BUILD_DIR)
-ifeq ($(RELEASE_BUILD_DIR),)
-	RELEASE_BUILD_DIR := .$(BUILD_DIR)_release
-endif
-ifeq ($(DEBUG_BUILD_DIR),)
-	DEBUG_BUILD_DIR := .$(BUILD_DIR)_debug
-endif
-
 LIBRARIES := cuda cudart cudadevrt boost_python python2.7
 
 # CUDA compilation rules
