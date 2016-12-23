@@ -1,6 +1,6 @@
-# KNN CUDA Wrapper
+# K-Nearest Neighbor CUDA Wrapper
 
-This repository provides a python wrapper for the [kNN-CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA).
+This repository provides a python wrapper for the [K Nearest Neighbor CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA).
 
 # Installation
 
@@ -32,14 +32,14 @@ python example.py
 
 In python, after you `import knn`, you can access the knn function.
 
-## knn.knn(query_points, reference_points, K)
+## distances, indices = knn.knn(query_points, reference_points, K)
 
 Both query_points and reference_points must be numpy arrays with float32 format.
 For both query and reference, the first dimension is the dimension of the vector and the second dimension is the number of vectors.
-
 K is the number of nearest neighbors.
 
-For each vector in the query_points, the function returns the 1-based indices of the K nearest neighbors.
+For each vector in the query_points, the function returns the distance from the query and the K-NNs and the 1-based indices of the K nearest neighbors.
+Both `distances` and `indices` have the same dimensions and the first dimension has size `K` and the size the second dimension is equal to the number of vectors in the query_points.
 
 # Warning
 
