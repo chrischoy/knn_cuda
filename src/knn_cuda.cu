@@ -2,6 +2,7 @@
  * The modifications are
  *      removed texture memory usage
  *      removed split query KNN computation
+ *      added feature extraction with bilinear interpolation
  *
  * Last modified by Christopher B. Choy <chrischoy@ai.stanford.edu> 12/23/2016
  */
@@ -256,18 +257,17 @@ void printErrorMessage(cudaError_t error, int memorySize){
   * Feature extraction algorithm
   * - Initialize CUDA
   * - Allocate device memory
-  * - Copy point sets (reference and query points) from host to device memory
-  * - Compute the distances + indexes to the k nearest neighbors for each query point
-  * - Copy distances from device to host memory
+  * - Copy data (activation, coordinates) from host to device memory
+  * - Extract features from the coordinates using bilinear interpolation
+  * - Copy extracted features from device to host memory
   *
-  * @param ref_host      reference points ; pointer to linear matrix
-  * @param ref_width     number of reference points ; width of the matrix
-  * @param query_host    query points ; pointer to linear matrix
-  * @param query_width   number of query points ; width of the matrix
-  * @param height        dimension of points ; height of the matrices
-  * @param k             number of neighbor to consider
-  * @param dist_host     distances to k nearest neighbors ; pointer to linear matrix
-  * @param dist_host     indexes of the k nearest neighbors ; pointer to linear matrix
+  * @param activation            reference feature map
+  * @param n_batch               number of feature maps
+  * @param n_channel             size of the feature dimension
+  * @param height                height of the feature map
+  * @param width                 width of the feature map
+  * @param coords                coordinates of the points for extraction
+  * @param extracted_activation  pointer for the final extracted features
   *
   */
 void extract_cuda(float* activation, int n_batch, int n_channel, int height,

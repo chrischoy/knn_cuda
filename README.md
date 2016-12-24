@@ -1,6 +1,6 @@
 # K-Nearest Neighbor GPU
 
-This repository contains a GPU version of K-Nearest Neighbor search. It also provides a python wrapper for the ease of use. The main CUDA code is modified from the [K Nearest Neighbor CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA).
+This repository contains a GPU version of K-Nearest Neighbor search. It also provides a python wrapper for the ease of use. The main CUDA code is modified from the [K Nearest Neighbor CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA). Along with the K-NN search, the code provides feature extraction from a feature map using a bilinear interpolation.
 
 # Installation
 
@@ -47,6 +47,12 @@ K is the number of nearest neighbors.
 
 For each vector in the query_points, the function returns the distance from the query and the K-NNs and the 1-based indices of the K nearest neighbors.
 Both `distances` and `indices` have the same dimensions and the first dimension has size `K` and the size the second dimension is equal to the number of vectors in the query_points.
+
+## extracted_features = knn.extract_feature(activations, coordinates)
+
+Extract features from the activation maps using bilinear interpolation.
+The `activations` is a 4D (N, C, H, W) tensor from which we extract features. N is the number of feature maps; C is the number of channels; H and W are height and width respectively.
+The `coordinates` is a 3D (N, M, 2) tensor which contains the coordinates which we use to extract features. N is the number of feature maps; M is the number of coordinates; The last 2 is for x and y coordinate.
 
 # Warning
 

@@ -5,7 +5,7 @@
 
 using namespace boost::python;
 
-// For extracting features from a caffe blob feature map.
+// For extracting features from a 4-D blob feature map.
 object extract_feature(PyObject* activation_, PyObject* coords_)
 {
   PyArrayObject* activation_py = (PyArrayObject*) activation_;
