@@ -1,6 +1,6 @@
-# K-Nearest Neighbor CUDA Wrapper
+# K-Nearest Neighbor GPU
 
-This repository provides a python wrapper for the [K Nearest Neighbor CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA).
+This repository contains a GPU version of K-Nearest Neighbor search. It also provides a python wrapper for the ease of use. The main CUDA code is modified from the [K Nearest Neighbor CUDA library](https://github.com/vincentfpgarcia/kNN-CUDA).
 
 # Installation
 
@@ -9,6 +9,13 @@ Please modify the `Makefile.config` to make sure all the dependencies are set co
 ```
 git clone https://github.com/chrischoy/knn_cuda.git
 cd knn_cuda
+```
+
+Modify the `Makefile.config` file to set `PYTHON_INCLUDE`, `PYTHON_LIB`, `CUDA_DIR` correctly. By default, The variables are set to the default python and CUDA installation directories.
+
+Then
+
+```
 make
 ```
 
