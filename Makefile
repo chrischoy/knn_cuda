@@ -5,7 +5,7 @@ PYTHON_INCLUDE = /home/chrischoy/anaconda/include/python2.7
 NVCC = nvcc
 NVCCFLAGS = -m64 -Xcompiler '-fPIC'
 CUDA_INCLUDES = -I$(PYTHON_INCLUDE)
-CUDA_LIBS = -lcuda -lcudart -lcudadevrt -L/usr/local/cuda-7.0/lib64
+CUDA_LIBS = -lcuda -lcudart -lcudadevrt -L/usr/local/cuda/lib64
 CUDA_TARGET = knn_cuda
 
 # Library compilation rules
