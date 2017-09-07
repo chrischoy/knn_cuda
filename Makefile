@@ -104,7 +104,7 @@ ALL_OBJS := $(addprefix $(BUILD_DIR)/, $(TARGET).o $(CUDA_TARGET).o $(CUDA_TARGE
 all: clean $(TARGET).so
 
 $(TARGET).so: $(ALL_OBJS)
-	$(CXX) $(LDFLAGS) $? -o $@
+	$(CXX) $? $(LDFLAGS) -o $@
 
 $(BUILD_DIR)/$(TARGET).o: src/$(TARGET).cpp
 	@ mkdir -p $(BUILD_DIR)
